@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { messages, conversations } from "@/db/schema";
+import { messages } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { runAgentTurn } from "@/lib/agent";
 
