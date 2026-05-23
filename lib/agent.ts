@@ -39,7 +39,6 @@ STRICT RULES:
 - BOOKING: If the prospect says yes, ok, sure, gives a time or day, or any positive response to a meeting → you MUST set status to "booked". This is non-negotiable.
 - REJECTION: If they say no, not interested, or are clearly not a fit → set status to "rejected".
 - Once booked, send one short confirmation message and stop. Do not ask more questions.
-- When in doubt → set "booked", not "active".
 
 OUTPUT FORMAT — respond with ONLY this JSON, nothing else:
 {"message":"your message here","status":"active","reasoning":"why"}
@@ -76,6 +75,11 @@ export async function runAgentTurn(conversationId: string) {
   }));
 
   const result = await callOpenRouter(systemPrompt, formattedHistory);
+
+  // First message is always the opener — never book/reject on first turn
+  if (history.length === 0) {
+    result.status = "active";
+  }
 
   // --- Server-side booking override ---
   // Small free models often ignore the status rule.
