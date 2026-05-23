@@ -4,7 +4,7 @@ Practice sales conversations against AI prospects that respond in-character base
 
 ## Live Demo
 
-https://leadwire-beta.vercel.app
+https://pp-sales.vercel.app
 
 ## What it does
 
@@ -24,8 +24,8 @@ Next.js (App Router) -- TypeScript -- Tailwind CSS -- Drizzle ORM -- PostgreSQL 
 ## Run locally
 
 ```bash
-git clone https://github.com/codenewbie09/leadwire
-cd leadwire
+git clone https://github.com/codenewbie09/pitchperfect
+cd pitchperfect
 npm install
 cp .env.example .env.local
 
