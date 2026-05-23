@@ -1,53 +1,63 @@
-import { pgTable, text, timestamp, uuid, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, uuid, pgEnum, jsonb } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
-export const conversationStatusEnum = pgEnum("conversation_status", [
+export const sessionStatusEnum = pgEnum("session_status", [
   "active",
-  "booked",
-  "rejected",
+  "completed",
 ]);
 
-export const campaigns = pgTable("campaigns", {
+export const difficultyEnum = pgEnum("difficulty", [
+  "easy",
+  "medium",
+  "hard",
+]);
+
+export const scenarios = pgTable("scenarios", {
   id: uuid("id").primaryKey().defaultRandom(),
+  title: text("title").notNull(),
   personaDescription: text("persona_description").notNull(),
+  industry: text("industry").notNull(),
+  difficulty: difficultyEnum("difficulty").default("medium").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const conversations = pgTable("conversations", {
+export const sessions = pgTable("sessions", {
   id: uuid("id").primaryKey().defaultRandom(),
-  campaignId: uuid("campaign_id")
-    .references(() => campaigns.id)
+  scenarioId: uuid("scenario_id")
+    .references(() => scenarios.id)
     .notNull(),
   prospectName: text("prospect_name").notNull(),
-  status: conversationStatusEnum("status").default("active").notNull(),
+  prospectBrief: jsonb("prospect_brief"),
+  feedback: jsonb("feedback"),
+  status: sessionStatusEnum("status").default("active").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const messages = pgTable("messages", {
   id: uuid("id").primaryKey().defaultRandom(),
-  conversationId: uuid("conversation_id")
-    .references(() => conversations.id)
+  sessionId: uuid("session_id")
+    .references(() => sessions.id)
     .notNull(),
   role: text("role").notNull(),
   content: text("content").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const campaignsRelations = relations(campaigns, ({ many }) => ({
-  conversations: many(conversations),
+export const scenariosRelations = relations(scenarios, ({ many }) => ({
+  sessions: many(sessions),
 }));
 
-export const conversationsRelations = relations(conversations, ({ one, many }) => ({
-  campaign: one(campaigns, {
-    fields: [conversations.campaignId],
-    references: [campaigns.id],
+export const sessionsRelations = relations(sessions, ({ one, many }) => ({
+  scenario: one(scenarios, {
+    fields: [sessions.scenarioId],
+    references: [scenarios.id],
   }),
   messages: many(messages),
 }));
 
 export const messagesRelations = relations(messages, ({ one }) => ({
-  conversation: one(conversations, {
-    fields: [messages.conversationId],
-    references: [conversations.id],
+  session: one(sessions, {
+    fields: [messages.sessionId],
+    references: [sessions.id],
   }),
 }));

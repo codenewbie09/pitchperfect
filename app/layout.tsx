@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Leadwire — LinkedIn Outreach Agent",
-  description: "AI-powered prospect qualification and meeting booking",
+  title: "PitchPerfect — AI Sales Roleplay Training",
+  description: "Practice sales conversations against AI prospects",
 };
 
 export default function RootLayout({
