@@ -1,7 +1,7 @@
 import { db } from "@/db";
 import { conversations, messages } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { callOpenRouter } from "./openrouter";
+import { callGroq } from "./openrouter";
 
 // Keywords that mean the prospect has agreed to a meeting
 const BOOKING_SIGNALS = [
@@ -74,7 +74,7 @@ export async function runAgentTurn(conversationId: string) {
     content: m.content,
   }));
 
-  const result = await callOpenRouter(systemPrompt, formattedHistory);
+  const result = await callGroq(systemPrompt, formattedHistory);
 
   // First message is always the opener — never book/reject on first turn
   if (history.length === 0) {

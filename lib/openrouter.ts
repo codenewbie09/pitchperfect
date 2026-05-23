@@ -16,32 +16,29 @@ function extractMessage(text: string): string {
   return match ? match[1] : text;
 }
 
-export async function callOpenRouter(
+const GROQ_API_BASE = "https://api.groq.com/openai/v1";
+
+export async function callGroq(
   systemPrompt: string,
   history: { role: "user" | "assistant"; content: string }[],
 ): Promise<AgentResponse> {
-  const response = await fetch(
-    "https://openrouter.ai/api/v1/chat/completions",
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": "http://localhost:3000",
-        "X-Title": "Leadwire",
-      },
-      body: JSON.stringify({
-        model: "liquid/lfm-2.5-1.2b-instruct:free",
-        messages: [{ role: "system", content: systemPrompt }, ...history],
-        temperature: 0.7,
-        max_tokens: 300,
-      }),
+  const response = await fetch(`${GROQ_API_BASE}/chat/completions`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+      "Content-Type": "application/json",
     },
-  );
+    body: JSON.stringify({
+      model: "llama-3.1-8b-instant",
+      messages: [{ role: "system", content: systemPrompt }, ...history],
+      temperature: 0.7,
+      max_tokens: 300,
+    }),
+  });
 
   if (!response.ok) {
     const err = await response.text();
-    throw new Error(`OpenRouter error: ${response.status} — ${err}`);
+    throw new Error(`Groq API error: ${response.status} — ${err}`);
   }
 
   const data = await response.json();
