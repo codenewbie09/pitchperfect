@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
+import { scoreColor, scoreTextColor } from "@/lib/utils";
 
 interface Message {
   id: string;
@@ -139,13 +140,13 @@ export default function SharePage() {
                       <span className="text-sm font-medium text-gray-900">
                         {label}
                       </span>
-                      <span className="text-sm font-bold text-gray-600">
+                      <span className={`text-sm font-bold ${scoreTextColor(cat.score)}`}>
                         {cat.score}/10
                       </span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
                       <div
-                        className="h-2 rounded-full bg-blue-500"
+                        className={`h-2 rounded-full ${scoreColor(cat.score)}`}
                         style={{ width: `${cat.score * 10}%` }}
                       />
                     </div>

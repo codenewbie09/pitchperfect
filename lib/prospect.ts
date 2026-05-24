@@ -31,7 +31,7 @@ async function callGroq(
   return raw.replace(/```json\n?|```/g, "").trim();
 }
 
-function extractJSON(text: string): Record<string, unknown> {
+export function extractJSON(text: string): Record<string, unknown> {
   for (const candidate of [text, `{${text}}`]) {
     try {
       return JSON.parse(candidate) as Record<string, unknown>;
