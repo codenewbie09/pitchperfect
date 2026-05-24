@@ -30,5 +30,5 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules", "demo_video_pitchperfect"]
+  "exclude": ["node_modules"]
 }
