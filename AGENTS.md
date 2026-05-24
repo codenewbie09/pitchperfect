@@ -6,27 +6,11 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 # PitchPerfect — AI Coding Agent Instructions
 
-You are working on **PitchPerfect**, an AI sales roleplay training app. Follow these instructions exactly. Do not skip steps. Do not ask for clarification unless a step is explicitly blocked.
+You are working on **PitchPerfect**, a live B2B SaaS product for AI sales roleplay training. The core loop is fully built and working. Your job is to upgrade it — better UI, test suite, new features, and production polish. Do not restructure what works.
 
----
-
-## Project Overview
-
-PitchPerfect lets users practice sales conversations against an AI prospect that responds in-character. After the session ends, an AI sales coach scores the user's performance.
-
-**Flow:**
-
-1. User creates a scenario (persona description + difficulty: easy / medium / hard)
-2. AI generates a realistic prospect brief (company, role, pain points, trigger event, personality)
-3. User plays the SDR — sends the first message
-4. AI responds in-character as the prospect
-5. Session ends when the SDR proposes a meeting (or the prospect walks away)
-6. AI delivers a scorecard: opener, qualification, objection handling, closing, overall score
-7. Shareable review link for completed sessions
-
-**Live URL:** https://pp-sales.vercel.app
-**Repo:** https://github.com/codenewbie09/pitchperfect
-**Stack:** Next.js (App Router) · TypeScript · Tailwind CSS · Drizzle ORM · PostgreSQL (Neon) · Groq API · Vercel
+**Live URL:** https://pp-sales.vercel.app  
+**Repo:** https://github.com/codenewbie09/pitchperfect  
+**Stack:** Next.js 14 (App Router) · TypeScript · Tailwind CSS · Drizzle ORM · PostgreSQL (Neon) · Groq API (llama-3.1-8b-instant) · Vercel
 
 ---
 
@@ -34,27 +18,22 @@ PitchPerfect lets users practice sales conversations against an AI prospect that
 
 - TypeScript everywhere. No `.js` files.
 - `async/await` only. No `.then()` chains.
-- Never use `any` unless unavoidable — use proper types.
+- Never use `any` unless unavoidable.
 - Every file must compile before moving to the next step.
 - Verify each step works before proceeding.
+- Do not restructure existing working files unless explicitly told to.
 - Do not build anything not listed here.
 
 ---
 
 ## Step 0 — Read Skills Before Writing Any Code
 
-Skills are located at:
-
 ```
 /mnt/skills/public/
   frontend-design/SKILL.md   ← read before writing ANY React/UI code
 ```
 
-**Required reads before starting:**
-
-1. Read `/mnt/skills/public/frontend-design/SKILL.md` before writing any UI code.
-
-Re-read before every new React component. If a skill conflicts with an explicit instruction here, follow this file.
+Re-read before every new React component. Skills are defaults — explicit instructions here override them.
 
 ---
 
@@ -65,7 +44,53 @@ DATABASE_URL=postgresql://REPLACE_WITH_NEON_CONNECTION_STRING
 GROQ_API_KEY=REPLACE_WITH_GROQ_KEY
 ```
 
-Note: This project uses `GROQ_API_KEY` directly (unlike Leadwire which had a legacy `OPENROUTER_API_KEY` name). Do not confuse the two.
+---
+
+## What Is Already Built (Do Not Rewrite)
+
+### Schema (`db/schema.ts`) — COMPLETE
+
+Tables: `scenarios`, `sessions`, `messages` with Drizzle relations.
+Scenarios have: `id`, `title`, `personaDescription`, `industry`, `difficulty`, `createdAt`
+Sessions have: `id`, `scenarioId`, `prospectName`, `prospectBrief` (jsonb), `feedback` (jsonb), `status`, `createdAt`
+Messages have: `id`, `sessionId`, `role`, `content`, `createdAt`
+
+### Core AI Logic (`lib/prospect.ts`) — COMPLETE, DO NOT MODIFY
+
+Three exported functions — do not change signatures or restructure:
+
+**`generateProspectBrief(prospectName, personaDescription, difficulty)`**
+Returns `{ company, role, painPoints[], triggerEvent, personality }`.
+Difficulty: easy=enthusiastic, medium=neutral, hard=skeptical+objections.
+
+**`runProspectTurn(sessionId)`**
+Reads full session+history from DB, calls Groq in-character, returns `{ message, status }`.
+Server-side completion override: fires when `userMessages.length >= 2 && sdrUsedClosingSignal`.
+Closing signals: schedule, meeting, call, demo, chat, thursday, friday, next week, calendar, book, set up a time.
+
+**`generateFeedback(history)`**
+Returns scorecard: `{ opener, qualification, objectionHandling, closing, overall, notes }`.
+Each category: `{ score: number (1-10), feedback: string }`.
+
+**`extractJSON(text)`** — internal fallback parser. Three strategies. Do not touch.
+**`callGroq(messages)`** — internal Groq client. Fallback model: `mixtral-8x7b-32768`.
+
+### Pages — COMPLETE
+
+- `app/page.tsx` — Dashboard: create scenario (title+persona+industry+difficulty), accordion list with stats, start session modal
+- `app/session/[id]/page.tsx` — Chat UI: bubbles, typing indicator (3-dot bounce), scorecard modal on completion
+- `app/review/[id]/page.tsx` — Full review: scorecard grid, transcript, share+try again buttons
+- `app/share/[id]/page.tsx` — Public share: no auth, scorecard+transcript, "Powered by PitchPerfect" footer
+
+### Known Bug to Fix
+
+`app/review/[id]/page.tsx` and `app/share/[id]/page.tsx` render all score bars as `bg-blue-500` regardless of score. They should use the same color logic as the session scorecard modal:
+
+- score >= 7 → `bg-green-500`
+- score >= 4 → `bg-yellow-500`
+- score < 4 → `bg-red-500`
+
+Fix this before building anything new.
 
 ---
 
@@ -74,194 +99,214 @@ Note: This project uses `GROQ_API_KEY` directly (unlike Leadwire which had a leg
 ```
 pitchperfect/
 ├── app/
-│   ├── page.tsx                        # Scenario dashboard
-│   ├── session/[id]/
-│   │   └── page.tsx                    # Active session / chat view
-│   ├── review/[id]/
-│   │   └── page.tsx                    # Scorecard view (post-session)
-│   ├── share/[id]/
-│   │   └── page.tsx                    # Public shareable transcript
+│   ├── page.tsx                          # Dashboard ✅
+│   ├── session/[id]/page.tsx             # Chat UI ✅
+│   ├── review/[id]/page.tsx              # Scorecard review ✅
+│   ├── share/[id]/page.tsx               # Public share ✅
 │   └── api/
-│       ├── scenarios/route.ts          # CRUD for scenarios
-│       ├── sessions/route.ts           # Create session + generate brief
-│       ├── messages/route.ts           # Save SDR message + trigger prospect turn
-│       ├── sessions/[id]/feedback/
-│       │   └── route.ts               # Generate + store scorecard
-│       ├── sessions/[id]/share/
-│       │   └── route.ts               # Public share data (no auth)
-│       └── scenarios/[id]/stats/
-│           └── route.ts               # Per-scenario analytics
+│       ├── scenarios/route.ts            # GET + POST ✅
+│       ├── sessions/route.ts             # GET + POST ✅
+│       ├── sessions/[id]/route.ts        # GET single session ✅
+│       ├── sessions/[id]/reply/route.ts  # POST SDR reply → prospect turn ✅
+│       ├── sessions/[id]/share/route.ts  # GET public share data ✅
+│       └── messages/route.ts             # GET messages by sessionId ✅
 ├── db/
-│   ├── schema.ts
-│   └── index.ts
+│   ├── schema.ts                         # ✅
+│   └── index.ts                          # ✅
 ├── lib/
-│   └── prospect.ts                     # Core AI logic (do not restructure)
-├── drizzle.config.ts
-└── .env.local
+│   └── prospect.ts                       # ✅ DO NOT MODIFY
+└── drizzle.config.ts
 ```
 
 ---
 
-## Database Schema
-
-```ts
-// db/schema.ts
-import {
-  pgTable,
-  text,
-  timestamp,
-  uuid,
-  pgEnum,
-  integer,
-  jsonb,
-} from "drizzle-orm/pg-core";
-
-export const difficultyEnum = pgEnum("difficulty", ["easy", "medium", "hard"]);
-export const sessionStatusEnum = pgEnum("session_status", [
-  "active",
-  "completed",
-]);
-
-export const scenarios = pgTable("scenarios", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  personaDescription: text("persona_description").notNull(),
-  difficulty: difficultyEnum("difficulty").notNull().default("medium"),
-  createdAt: timestamp("created_at").defaultNow(),
-});
-
-export const sessions = pgTable("sessions", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  scenarioId: uuid("scenario_id")
-    .references(() => scenarios.id)
-    .notNull(),
-  prospectName: text("prospect_name").notNull(),
-  prospectBrief: jsonb("prospect_brief"), // { company, role, painPoints, triggerEvent, personality }
-  status: sessionStatusEnum("status").default("active").notNull(),
-  feedback: jsonb("feedback"), // scorecard, stored after session ends
-  createdAt: timestamp("created_at").defaultNow(),
-});
-
-export const messages = pgTable("messages", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  sessionId: uuid("session_id")
-    .references(() => sessions.id)
-    .notNull(),
-  role: text("role").notNull(), // "user" (SDR) | "assistant" (prospect)
-  content: text("content").notNull(),
-  createdAt: timestamp("created_at").defaultNow(),
-});
-```
-
-Run migrations after any schema change:
-
-```bash
-npx drizzle-kit generate
-npx drizzle-kit migrate
-```
+## Upgrades to Build (Priority Order)
 
 ---
 
-## Core AI Logic — `lib/prospect.ts`
+### Upgrade 1 — Fix Score Bar Colors (Day 1, 30 min)
 
-**This file is already implemented. Do not restructure it.**
-
-It exports three functions — understand what each does before calling them:
-
-### `generateProspectBrief(prospectName, personaDescription, difficulty)`
-
-Called once when a session is created. Returns `{ company, role, painPoints, triggerEvent, personality }`. Store the result as `sessions.prospectBrief` (jsonb).
-
-Difficulty affects personality:
-
-- `easy` → enthusiastic, obvious pain, clear buying signals
-- `medium` → neutral, asks thoughtful questions
-- `hard` → skeptical, raises objections on pricing/competitors/timing
-
-### `runProspectTurn(sessionId)`
-
-Called after every SDR message. Reads full session + message history from DB, builds the in-character system prompt, calls Groq, returns `{ message, status }`.
-
-**Server-side completion override is already implemented:** if the SDR has sent ≥2 messages and used a closing signal (schedule, meeting, call, demo, book, etc.) → forces `status: "completed"` regardless of model output.
-
-When `status === "completed"`:
-
-1. Save the prospect's final message to DB
-2. Update `sessions.status` to `"completed"`
-3. Immediately trigger `generateFeedback` and store result in `sessions.feedback`
-
-### `generateFeedback(history)`
-
-Called once when session completes. Takes full message history, returns scorecard:
+In `app/review/[id]/page.tsx` and `app/share/[id]/page.tsx`, replace the static `bg-blue-500` on progress bars with:
 
 ```ts
-{
-  opener: { score: number, feedback: string },       // 1-10
-  qualification: { score: number, feedback: string },
-  objectionHandling: { score: number, feedback: string },
-  closing: { score: number, feedback: string },
-  overall: number,
-  notes: string
+function scoreColor(score: number): string {
+  if (score >= 7) return "bg-green-500";
+  if (score >= 4) return "bg-yellow-500";
+  return "bg-red-500";
 }
 ```
 
-Store in `sessions.feedback` (jsonb).
-
-**Fallback model:** If `llama-3.1-8b-instant` errors consistently, switch to `mixtral-8x7b-32768`. Change only the `model` string in `callGroq` inside `prospect.ts`.
+Apply to both the bar (`className`) and the score text color. Match exactly what the session scorecard modal does.
 
 ---
 
-## API Routes
+### Upgrade 2 — Prospect Brief Sidebar (Day 1)
 
-### `POST /api/scenarios`
+On `app/session/[id]/page.tsx`, the brief is currently shown only as an empty-state card before the first message. Once messages start, it disappears.
 
-Create a scenario. Body: `{ personaDescription, difficulty }`. Returns created scenario.
+Add a collapsible sidebar/panel that shows the prospect brief at all times during an active session:
 
-### `GET /api/scenarios`
+- Prospect name + role + company
+- Trigger event (italic)
+- Pain points as a bulleted list
+- Personality note
+- Difficulty badge
 
-List all scenarios ordered by `createdAt` desc.
+On desktop: fixed right sidebar (280px). On mobile: collapsible panel toggled by an info button in the header.
 
-### `POST /api/sessions`
+This gives the user context while they type — critical for the training use case.
 
-Create a session. Body: `{ scenarioId, prospectName }`.
+---
 
-Steps inside this route (in order):
+### Upgrade 3 — Landing Page (`app/landing/page.tsx` or make `app/page.tsx` conditional) (Day 2)
 
-1. Insert session row
-2. Call `generateProspectBrief(prospectName, scenario.personaDescription, scenario.difficulty)`
-3. Store brief in `sessions.prospectBrief`
-4. Return session — do NOT fire first prospect turn here. The SDR sends the first message.
+Add a proper landing/hero section above the scenario creation form on the dashboard. It should feel like a real SaaS product:
 
-### `GET /api/sessions?scenarioId=`
+- Headline: "Practice Sales. Get Scored. Close More."
+- Subheadline: "AI prospects that respond in-character. Instant feedback from your AI coach."
+- Three feature pills: "3 difficulty levels", "AI-generated prospects", "Instant scorecard"
+- A "How it works" section: 3 steps (Create scenario → Practice conversation → Get scored)
+- Then the existing scenario creation form and list below
 
-List sessions for a scenario with status.
+Use only Tailwind. No images needed — use emoji or SVG icons inline.
 
-### `POST /api/messages`
+---
 
-Body: `{ sessionId, content }`.
+### Upgrade 4 — Session History on Review Page (Day 2)
 
-Steps:
+On `app/review/[id]/page.tsx`, add a "Session Stats" row above the scorecard:
 
-1. Verify session is `active` — return 400 if not
-2. Insert SDR message with `role: "user"`
-3. Call `runProspectTurn(sessionId)`
-4. Insert prospect response with `role: "assistant"`
-5. If `status === "completed"`:
-   - Update `sessions.status` to `"completed"`
-   - Call `generateFeedback` with full history
-   - Store feedback in `sessions.feedback`
-6. Return `{ message, status, feedback? }`
+- Total turns (count of SDR messages)
+- Difficulty badge
+- Date completed
+- Prospect company + role from brief
 
-### `GET /api/sessions/[id]/feedback`
+This makes the review page feel like a real performance report, not just a chat log.
 
-Return `sessions.feedback` for a completed session. Return 404 if not completed yet.
+---
 
-### `GET /api/sessions/[id]/share`
+### Upgrade 5 — Test Suite (Day 3-4)
 
-Public endpoint — no auth. Returns session + messages + feedback. Used by `/share/[id]`.
+Install Vitest:
 
-### `GET /api/scenarios/[id]/stats`
+```bash
+npm install -D vitest @vitejs/plugin-react jsdom @testing-library/react @testing-library/jest-dom
+```
 
-Returns:
+Create `vitest.config.ts`:
+
+```ts
+import { defineConfig } from "vitest/config";
+import react from "@vitejs/plugin-react";
+
+export default defineConfig({
+  plugins: [react()],
+  test: {
+    environment: "jsdom",
+    globals: true,
+    setupFiles: ["./tests/setup.ts"],
+  },
+});
+```
+
+Create `tests/setup.ts`:
+
+```ts
+import "@testing-library/jest-dom";
+```
+
+#### Tests to write:
+
+**`tests/unit/extractJSON.test.ts`** — test `extractJSON` from `prospect.ts`
+
+```ts
+// Test cases:
+// 1. Valid JSON string → returns parsed object
+// 2. JSON wrapped in markdown fences → strips and parses
+// 3. Partial JSON with message field → extracts via regex
+// 4. Completely invalid → returns { message: rawText, status: "active" }
+// 5. JSON with status "completed" → status preserved
+```
+
+**`tests/unit/scoreColor.test.ts`** — test the score color helper
+
+```ts
+// score >= 7 → "bg-green-500"
+// score 4-6 → "bg-yellow-500"
+// score < 4 → "bg-red-500"
+// score exactly 7 → green
+// score exactly 4 → yellow
+```
+
+**`tests/unit/feedback.test.ts`** — test `generateFeedback` shape validation
+
+```ts
+// Mock callGroq to return known JSON
+// Assert all four categories present with score + feedback
+// Assert overall is a number
+// Assert notes is a string
+// Test parseScore with missing fields → defaults to score: 5
+```
+
+**`tests/unit/prospectBrief.test.ts`** — test `generateProspectBrief` output shape
+
+```ts
+// Mock callGroq to return known JSON
+// Assert company, role, painPoints[], triggerEvent, personality are strings/arrays
+// Test with missing fields in Groq response → graceful defaults
+```
+
+**`tests/integration/api.test.ts`** — test API route logic (mock DB)
+
+```ts
+// POST /api/scenarios — missing fields → 400
+// POST /api/scenarios — valid body → 201 with id
+// POST /api/sessions — missing scenarioId → 400
+// POST /api/sessions/[id]/reply — session already completed → 400
+// GET /api/sessions/[id]/share — returns session + messages + scenario
+```
+
+Add to `package.json`:
+
+```json
+"scripts": {
+  "test": "vitest run",
+  "test:watch": "vitest",
+  "test:coverage": "vitest run --coverage"
+}
+```
+
+All tests must pass with `npm test` before marking this upgrade done.
+
+---
+
+### Upgrade 6 — `ARCHITECTURE.md` (Day 4)
+
+Create `ARCHITECTURE.md` in the repo root. See the separate `ARCHITECTURE.md` file in this repo for the full content to write. It must cover:
+
+- System overview diagram (ASCII)
+- Data flow for each major operation
+- AI layer design decisions
+- Schema design rationale
+- Known limitations and tradeoffs
+
+---
+
+### Upgrade 7 — CSV Export (Day 5)
+
+Add `GET /api/scenarios/[id]/export` route:
+
+- Returns a CSV file with headers: `prospect_name,difficulty,overall_score,opener,qualification,objection_handling,closing,turns,completed_at`
+- Only includes completed sessions
+- Sets `Content-Type: text/csv` and `Content-Disposition: attachment; filename="pitchperfect-export.csv"`
+
+Add an "Export CSV" button to the scenario accordion in `app/page.tsx`. Triggers a download via `window.open(/api/scenarios/${id}/export)`.
+
+---
+
+### Upgrade 8 — Leaderboard / Best Sessions (Day 5)
+
+Add `GET /api/scenarios/[id]/stats` if not already present:
 
 ```json
 {
@@ -270,117 +315,27 @@ Returns:
   "completionRate": 0.67,
   "avgOverallScore": 6.4,
   "avgTurns": 5.2,
-  "scoreDistribution": {
-    "opener": 7.1,
-    "qualification": 6.2,
-    "objectionHandling": 5.8,
-    "closing": 6.8
+  "topSession": {
+    "prospectName": "Alex Kumar",
+    "score": 9,
+    "sessionId": "uuid"
   }
 }
 ```
 
----
-
-## Frontend Pages
-
-**Read `/mnt/skills/public/frontend-design/SKILL.md` before writing any of these.**
-
-Install shadcn/ui for components:
-
-```bash
-npx shadcn@latest init
-```
-
-### Page 1: Dashboard (`app/page.tsx`)
-
-- Form to create a scenario: textarea for persona description, difficulty selector (Easy / Medium / Hard toggle), submit button
-- List of scenarios as cards showing: persona (truncated), difficulty badge, session count, avg score if any
-- Each card has a "Start Session" button → modal asking for prospect name → POST `/api/sessions` → navigate to `/session/[id]`
-- Clicking a completed session on a card navigates to `/review/[id]`
-
-### Page 2: Session / Chat (`app/session/[id]/page.tsx`)
-
-- Status badge at top: green "Active", blue "Completed"
-- Chat bubbles: SDR messages on the right (you), prospect on the left (AI)
-- Show prospect name + company from brief at the top as context
-- Text input + "Send" button at bottom if `active`
-- On send: POST `/api/messages` → append both messages → re-fetch
-- If response returns `status: "completed"` → hide input, show "Session complete" banner + "View Scorecard" button → navigate to `/review/[id]`
-- Show a subtle typing indicator (CSS animation) while waiting for prospect response
-
-### Page 3: Scorecard (`app/review/[id]/page.tsx`)
-
-- Fetch feedback from `GET /api/sessions/[id]/feedback`
-- Show four score cards: Opener, Qualification, Objection Handling, Closing — each with score/10 and one-line feedback
-- Show overall score prominently (large number)
-- Show `notes` (AI coach summary) below
-- Show full conversation transcript below the scorecard
-- "Share" button → copy `/share/[id]` link to clipboard
-- "Try Again" button → creates a new session with same scenario
-
-### Page 4: Public Share (`app/share/[id]/page.tsx`)
-
-- Public, no auth required
-- Shows: prospect name, scenario difficulty, full transcript
-- Shows scorecard (all four scores + overall + notes)
-- "Powered by PitchPerfect" footer with link to home
-- This is what gets sent to job applications as proof
+Show a "Best Session" badge on the scenario card linking to that session's review page.
 
 ---
 
-## Known Issues & Fixes
+## Error Handling Requirements
 
-### 1. Session completion not triggering consistently
+Every API route must handle:
 
-**Problem:** `runProspectTurn` server-side override checks `userMessages.length >= 2` but also requires a closing signal in any user message. If the SDR says "want to schedule a call?" on message 1, it won't trigger until message 2.
-
-**Fix already in place:** The override fires when `userMessages.length >= 2 && sdrClosing`. This is intentional — a single message close is too aggressive. Do not change this threshold.
-
-**If completion still doesn't trigger:** Check that `sessions.status` is being updated in `POST /api/messages` after `runProspectTurn` returns `"completed"`. This is the most common bug — the turn runs but the status write is missed.
-
-### 2. `generateFeedback` called with empty history
-
-**Problem:** If called before messages are committed, feedback is blank.
-
-**Fix:** Always call `generateFeedback` AFTER inserting the prospect's final message in `POST /api/messages`. The order matters:
-
-```
-insert SDR message → runProspectTurn → insert prospect message → generateFeedback
-```
-
-### 3. Groq returns non-JSON for prospect turns
-
-**Problem:** `llama-3.1-8b-instant` occasionally wraps output in markdown despite the prompt.
-
-**Fix already in place:** `extractJSON` in `prospect.ts` has three fallback strategies. Do not modify it. If it still fails, switch to `mixtral-8x7b-32768`.
-
----
-
-## Features to Build (priority order)
-
-### ✅ Feature 1 — Core loop (prospect.ts is done)
-
-`generateProspectBrief`, `runProspectTurn`, `generateFeedback` are implemented. Wire them into API routes.
-
-### Feature 2 — Session UI with typing indicator
-
-The most important UX detail. A fake 1-1.5s delay + animated dots before the prospect message appears makes it feel real. Implement as a local `isTyping` state in the session page.
-
-### Feature 3 — Scorecard page
-
-Visualize scores as progress bars or circular indicators. shadcn/ui `Progress` component works well here.
-
-### Feature 4 — Public share page
-
-Required for portfolio/application use. `/share/[id]` must work without login.
-
-### Feature 5 — Scenario analytics
-
-`GET /api/scenarios/[id]/stats` + a stats section on the dashboard card. Shows avg score and completion rate per scenario.
-
-### Feature 6 — CSV export
-
-Download all sessions for a scenario as CSV: prospect name, difficulty, overall score, turns taken, completed date. One API route + one button on the dashboard.
+- Missing required fields → 400 with `{ error: "field X required" }`
+- Session already completed → 400 with `{ error: "Session is already completed" }`
+- Groq API failure → 500 with `{ error: "AI service error" }`, never crash silently
+- DB connection failure → 500 with error message surfaced in response
+- Share page for non-existent session → 404
 
 ---
 
@@ -388,24 +343,24 @@ Download all sessions for a scenario as CSV: prospect name, difficulty, overall 
 
 Do NOT build:
 
-- User authentication / login
+- User authentication or login
 - Real LinkedIn or CRM integration
 - Voice or audio features
-- Multi-user / team features
-- Mobile-specific layouts
-
-If a feature is not listed above, do not build it.
+- Multi-user or team features
+- Payments or subscription logic
+- Any feature not listed in Upgrades 1-8
 
 ---
 
 ## Error Handling Checklist
 
-Before marking any feature done, verify:
+Before marking any upgrade done:
 
-- [ ] Groq returns malformed JSON → `extractJSON` fallback handles it, app does not crash
-- [ ] Session already completed → `POST /api/messages` returns 400, not 500
-- [ ] `generateFeedback` fails → session still closes, `feedback` stays null, review page shows "Feedback unavailable"
-- [ ] `prospectBrief` is null → `runProspectTurn` uses fallback strings (already guarded in prospect.ts)
-- [ ] Groq API key missing → clear error in console, 500 with message in API response
-- [ ] Share page loads for a non-existent ID → 404 page, not crash
-- [ ] SDR sends empty message → reject at API level before calling Groq
+- [ ] Score bars use green/yellow/red based on score value (not static blue)
+- [ ] `extractJSON` fallback tested — malformed Groq response never crashes the app
+- [ ] Session already completed → API returns 400, not 500
+- [ ] `generateFeedback` failure → session still closes, feedback stays null, review shows "Feedback unavailable"
+- [ ] Share page for missing ID → 404, not crash
+- [ ] SDR sends empty string → rejected at API level before Groq is called
+- [ ] CSV export only includes completed sessions
+- [ ] All Vitest tests pass with `npm test`
