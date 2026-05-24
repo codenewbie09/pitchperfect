@@ -6,9 +6,9 @@ Practice sales conversations against AI prospects that respond in-character base
 
 https://pp-sales.vercel.app
 
-<video src="https://github.com/codenewbie09/pitchperfect/raw/main/pitchperfect-demo.mp4" controls width="100%" style="max-width: 720px; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.15);"></video>
+[![PitchPerfect Demo](demo-thumbnail.png)](https://raw.githubusercontent.com/codenewbie09/pitchperfect/main/pitchperfect-demo.mp4)
 
-*Demo video rendered with [Remotion](https://remotion.dev) — 57s, 1280x720.*
+*Click the screenshot to watch the demo video (57s, 1280x720). Rendered with [Remotion](https://remotion.dev).*
 
 ## How it works
 
