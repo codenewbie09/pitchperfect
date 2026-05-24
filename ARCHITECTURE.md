@@ -15,9 +15,9 @@ PitchPerfect is a B2B SaaS web application for AI-powered sales roleplay trainin
 │                     Browser (Client)                     │
 │  Next.js App Router — React Server + Client Components   │
 │                                                          │
-│  /              → Dashboard (scenarios + sessions)       │
-│  /session/[id]  → Active chat with AI prospect           │
-│  /review/[id]   → Scorecard + full transcript            │
+│  /              → Dashboard (hero + scenarios + sessions) │
+│  /session/[id]  → Active chat + persistent brief sidebar  │
+│  /review/[id]   → Stats row + scorecard + full transcript │
 │  /share/[id]    → Public read-only view (no auth)        │
 └────────────────────────┬────────────────────────────────┘
                          │ HTTP (fetch)
@@ -32,6 +32,9 @@ PitchPerfect is a B2B SaaS web application for AI-powered sales roleplay trainin
 │  GET  /api/sessions/[id]      → single session           │
 │  POST /api/sessions/[id]/reply→ SDR turn → prospect turn │
 │  GET  /api/sessions/[id]/share→ public share data        │
+│  GET  /api/sessions/[id]/feedback→ session feedback      │
+│  GET  /api/scenarios/[id]/stats → leaderboard + stats    │
+│  GET  /api/scenarios/[id]/export → CSV download          │
 │  GET  /api/messages?sessionId → message history          │
 └──────────┬──────────────────────────┬───────────────────┘
            │                          │
@@ -105,7 +108,31 @@ generateFeedback(history):
 → Overall score + coach notes
 ```
 
-### 5. Share Flow
+### 5. CSV Export
+```
+User clicks "Export CSV" on scenario card
+→ GET /api/scenarios/[id]/export
+→ Query all completed sessions for that scenario with brief + feedback
+→ Build CSV string with headers: prospect_name, difficulty, overall_score,
+  opener, qualification, objection_handling, closing, turns, completed_at
+→ Return with Content-Type: text/csv, Content-Disposition: attachment
+→ Browser triggers file download
+```
+
+### 6. Leaderboard / Stats
+```
+User views dashboard
+→ GET /api/scenarios fetch all scenarios
+→ For each scenario (or when stats endpoint is called):
+   → Query all sessions for that scenario
+   → Compute total / completed counts, avg score, avg turns
+   → Find top session by highest feedback.overall (> 0)
+   → Return { total, completed, completionRate, avgOverallScore,
+              avgTurns, scoreDistribution, topSession }
+→ Best session badge shown on scenario card linking to /review/[id]
+```
+
+### 7. Share Flow
 ```
 User clicks "Share" on review page
 → Copy /share/[id] to clipboard
@@ -198,6 +225,34 @@ Drizzle relations are defined for `db.query.*` with relational queries — used 
 ### Decision 5: Public share with no auth
 **Alternative considered:** Token-based share links with expiry.
 **Why rejected:** Unnecessary complexity for v1. The session ID is a UUID — unguessable. Public by default makes sharing frictionless, which is the goal.
+
+---
+
+## Test Suite
+
+Tests use **Vitest** with `jsdom` environment and `@testing-library/react`.
+
+### Test files (23 tests total)
+
+| File | Tests | What it covers |
+|---|---|---|
+| `tests/unit/extractJSON.test.ts` | 6 | Valid JSON, markdown fences, regex fallback, invalid input, status preservation |
+| `tests/unit/scoreColor.test.ts` | 5 | Boundary conditions: 7+, 4-6, <4, exact 7, exact 4 |
+| `tests/unit/feedback.test.ts` | 4 | Scorecard shape validation, missing field defaults |
+| `tests/unit/prospectBrief.test.ts` | 3 | Brief shape validation, missing field defaults |
+| `tests/integration/api.scenarios.test.ts` | 3 | POST validation: missing fields → 400, valid → 201 |
+| `tests/integration/api.reply.test.ts` | 2 | Completed session guard → 400 |
+
+### Mocking strategy
+
+Tests mock `@/db` at the module level using `vi.mock` to avoid requiring a Neon connection string in CI. The `callGroq` function is mocked to return known JSON for deterministic assertions. The `extractJSON` function is tested directly (not mocked) since it's a pure function.
+
+### Run
+
+```bash
+npm test           # Run once (CI)
+npm run test:watch # Development
+```
 
 ---
 
