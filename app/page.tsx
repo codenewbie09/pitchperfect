@@ -82,7 +82,10 @@ export default function Dashboard() {
 
   async function fetchScenarios() {
     const res = await fetch("/api/scenarios");
-    if (res.ok) setScenarios(await res.json());
+    if (!res.ok) return;
+    const data: Scenario[] = await res.json();
+    setScenarios(data);
+    await Promise.all(data.map((s) => fetchSessions(s.id)));
   }
 
   async function fetchSessions(scenarioId: string) {
