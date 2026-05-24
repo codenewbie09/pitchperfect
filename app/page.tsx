@@ -28,6 +28,20 @@ interface Session {
   createdAt: string;
 }
 
+interface ScenarioStats {
+  total: number;
+  completed: number;
+  completionRate: number;
+  avgOverallScore: number;
+  avgTurns: number;
+  scoreDistribution: Record<string, number>;
+  topSession?: {
+    prospectName: string;
+    score: number;
+    sessionId: string;
+  };
+}
+
 const difficultyColors: Record<string, string> = {
   easy: "bg-green-100 text-green-800 border-green-200",
   medium: "bg-yellow-100 text-yellow-800 border-yellow-200",
@@ -67,6 +81,7 @@ export default function Dashboard() {
   const router = useRouter();
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [sessionsMap, setSessionsMap] = useState<Record<string, Session[]>>({});
+  const [statsMap, setStatsMap] = useState<Record<string, ScenarioStats>>({});
   const [activeScenario, setActiveScenario] = useState<string | null>(null);
   const [prospectInput, setProspectInput] = useState("");
 
@@ -86,6 +101,7 @@ export default function Dashboard() {
     const data: Scenario[] = await res.json();
     setScenarios(data);
     await Promise.all(data.map((s) => fetchSessions(s.id)));
+    await Promise.all(data.map((s) => fetchStats(s.id)));
   }
 
   async function fetchSessions(scenarioId: string) {
@@ -93,6 +109,14 @@ export default function Dashboard() {
     if (res.ok) {
       const data = await res.json();
       setSessionsMap((prev) => ({ ...prev, [scenarioId]: data }));
+    }
+  }
+
+  async function fetchStats(scenarioId: string) {
+    const res = await fetch(`/api/scenarios/${scenarioId}/stats`);
+    if (res.ok) {
+      const data = await res.json();
+      setStatsMap((prev) => ({ ...prev, [scenarioId]: data }));
     }
   }
 
@@ -170,6 +194,59 @@ export default function Dashboard() {
       </header>
 
       <main className="max-w-5xl mx-auto px-6 py-8">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 tracking-tight">
+            Practice Sales. Get Scored. Close More.
+          </h2>
+          <p className="text-gray-500 mt-3 max-w-xl mx-auto text-sm sm:text-base">
+            AI prospects that respond in-character. Instant feedback from your AI coach.
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-3 mt-6">
+            <span className="inline-flex items-center gap-1.5 bg-white border border-gray-200 rounded-full px-4 py-1.5 text-sm text-gray-700">
+              <svg className="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              3 difficulty levels
+            </span>
+            <span className="inline-flex items-center gap-1.5 bg-white border border-gray-200 rounded-full px-4 py-1.5 text-sm text-gray-700">
+              <svg className="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              AI-generated prospects
+            </span>
+            <span className="inline-flex items-center gap-1.5 bg-white border border-gray-200 rounded-full px-4 py-1.5 text-sm text-gray-700">
+              <svg className="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Instant scorecard
+            </span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-12">
+          <div className="bg-white border border-gray-200 rounded-xl p-5 text-center">
+            <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center mx-auto mb-3">
+              <span className="text-blue-700 font-bold text-sm">1</span>
+            </div>
+            <h3 className="text-sm font-semibold text-gray-900">Create Scenario</h3>
+            <p className="text-xs text-gray-500 mt-1">Describe your target prospect and set the difficulty</p>
+          </div>
+          <div className="bg-white border border-gray-200 rounded-xl p-5 text-center">
+            <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center mx-auto mb-3">
+              <span className="text-blue-700 font-bold text-sm">2</span>
+            </div>
+            <h3 className="text-sm font-semibold text-gray-900">Practice Conversation</h3>
+            <p className="text-xs text-gray-500 mt-1">Roleplay as the SDR against an AI prospect</p>
+          </div>
+          <div className="bg-white border border-gray-200 rounded-xl p-5 text-center">
+            <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center mx-auto mb-3">
+              <span className="text-blue-700 font-bold text-sm">3</span>
+            </div>
+            <h3 className="text-sm font-semibold text-gray-900">Get Scored</h3>
+            <p className="text-xs text-gray-500 mt-1">Receive detailed feedback and track your progress</p>
+          </div>
+        </div>
+
         <div className="bg-white rounded-xl border border-gray-200 p-6 mb-8">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">
             New Scenario
@@ -246,6 +323,8 @@ export default function Dashboard() {
             const stats = getStats(scenario.id);
             const active = activeSessions(scenario.id);
             const completed = completedSessions(scenario.id);
+            const scenarioStats = statsMap[scenario.id];
+            const topSession = scenarioStats?.topSession;
 
             return (
               <div
@@ -281,21 +360,32 @@ export default function Dashboard() {
                         )}
                       </div>
                     </div>
-                    <svg
-                      className={`w-5 h-5 text-gray-400 transition-transform ${
-                        activeScenario === scenario.id ? "rotate-180" : ""
-                      }`}
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={2}
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M19 9l-7 7-7-7"
-                      />
-                    </svg>
+                    <div className="flex items-center gap-3">
+                      {topSession && (
+                        <a
+                          href={`/session/${topSession.sessionId}/review`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-xs font-medium px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 border border-amber-200 hover:bg-amber-200 transition-colors"
+                        >
+                          Best: {topSession.score}/10
+                        </a>
+                      )}
+                      <svg
+                        className={`w-5 h-5 text-gray-400 transition-transform ${
+                          activeScenario === scenario.id ? "rotate-180" : ""
+                        }`}
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M19 9l-7 7-7-7"
+                        />
+                      </svg>
+                    </div>
                   </div>
                 </button>
 
@@ -317,6 +407,25 @@ export default function Dashboard() {
                         className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
                       >
                         Start Session
+                      </button>
+                    </div>
+
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-500">Completed: {stats.completed}</span>
+                        {stats.total > 0 && (
+                          <span className="text-xs text-gray-500">
+                            Rate: {Math.round((stats.completed / stats.total) * 100)}%
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => {
+                          window.open(`/api/scenarios/${scenario.id}/export`, "_blank");
+                        }}
+                        className="text-xs text-gray-500 hover:text-gray-700 border border-gray-300 rounded-lg px-3 py-1.5 transition-colors"
+                      >
+                        Export CSV
                       </button>
                     </div>
 

@@ -33,11 +33,18 @@ interface SessionData {
   } | null;
 }
 
+const difficultyColors: Record<string, string> = {
+  easy: "bg-green-100 text-green-800 border-green-200",
+  medium: "bg-yellow-100 text-yellow-800 border-yellow-200",
+  hard: "bg-red-100 text-red-800 border-red-200",
+};
+
 export default function ReviewPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const [session, setSession] = useState<SessionData | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [difficulty, setDifficulty] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
@@ -46,6 +53,18 @@ export default function ReviewPage() {
       fetchMessages();
     }
   }, [id]);
+
+  useEffect(() => {
+    if (session?.scenarioId) {
+      fetch(`/api/scenarios`)
+        .then((r) => r.json())
+        .then((scenarios: { id: string; difficulty: string }[]) => {
+          const found = scenarios.find((s) => s.id === session.scenarioId);
+          if (found) setDifficulty(found.difficulty);
+        })
+        .catch(() => {});
+    }
+  }, [session?.scenarioId]);
 
   async function fetchSession() {
     const res = await fetch(`/api/sessions/${id}`);
@@ -81,6 +100,9 @@ export default function ReviewPage() {
   }
 
   const feedback = session?.feedback;
+  const sdrs = messages.filter((m) => m.role === "user");
+  const turns = sdrs.length;
+  const brief = session?.prospectBrief;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -91,9 +113,9 @@ export default function ReviewPage() {
               <h1 className="text-lg font-semibold text-gray-900">
                 {session?.prospectName || "Loading..."}
               </h1>
-              {session?.prospectBrief && (
+              {brief && (
                 <p className="text-xs text-gray-500">
-                  {session.prospectBrief.role} at {session.prospectBrief.company}
+                  {brief.role} at {brief.company}
                 </p>
               )}
             </div>
@@ -103,6 +125,43 @@ export default function ReviewPage() {
       </header>
 
       <div className="max-w-3xl mx-auto px-6 py-8">
+        {session?.status === "completed" && (
+          <div className="bg-white border border-gray-200 rounded-xl p-5 mb-8">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
+              <div>
+                <p className="text-xs text-gray-500 uppercase tracking-wide">Turns</p>
+                <p className="text-lg font-semibold text-gray-900 mt-1">{turns}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500 uppercase tracking-wide">Difficulty</p>
+                <div className="mt-1 flex justify-center">
+                  {difficulty && (
+                    <span
+                      className={`text-xs font-medium px-2.5 py-0.5 rounded-full border ${
+                        difficultyColors[difficulty] || "bg-gray-100 text-gray-800"
+                      }`}
+                    >
+                      {difficulty}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500 uppercase tracking-wide">Company</p>
+                <p className="text-sm font-medium text-gray-900 mt-1 truncate">
+                  {brief?.company || "-"}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500 uppercase tracking-wide">Role</p>
+                <p className="text-sm font-medium text-gray-900 mt-1 truncate">
+                  {brief?.role || "-"}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {!feedback && session?.status === "completed" && (
           <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-8 text-sm text-yellow-800 text-center">
             Feedback unavailable

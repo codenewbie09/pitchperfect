@@ -83,6 +83,22 @@ export async function GET(
     );
   }
 
+  let topSession = undefined;
+  if (completed.length > 0) {
+    const scored = completed
+      .map((s) => ({
+        sessionId: s.id,
+        prospectName: s.prospectName,
+        score: Number((s.feedback as Record<string, unknown> | null)?.overall ?? 0),
+      }))
+      .filter((s) => s.score > 0)
+      .sort((a, b) => b.score - a.score);
+
+    if (scored.length > 0) {
+      topSession = scored[0];
+    }
+  }
+
   return NextResponse.json({
     total,
     completed: completed.length,
@@ -90,5 +106,6 @@ export async function GET(
     avgOverallScore,
     avgTurns,
     scoreDistribution,
+    topSession,
   });
 }

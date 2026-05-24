@@ -120,6 +120,78 @@ function Scorecard({
   );
 }
 
+function BriefPanel({
+  brief,
+  prospectName,
+  difficulty,
+  onClose,
+}: {
+  brief: NonNullable<SessionData["prospectBrief"]>;
+  prospectName: string;
+  difficulty?: string;
+  onClose?: () => void;
+}) {
+  return (
+    <div className="space-y-4">
+      <div>
+        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Prospect</h3>
+        <p className="text-sm font-medium text-gray-900 mt-1">{prospectName}</p>
+        {brief.role && <p className="text-xs text-gray-600">{brief.role}</p>}
+        {brief.company && <p className="text-xs text-gray-500">{brief.company}</p>}
+      </div>
+      {difficulty && (
+        <div>
+          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Difficulty</h3>
+          <span
+            className={`inline-block text-xs font-medium px-2 py-0.5 rounded-full border mt-1 ${
+              difficulty === "easy"
+                ? "bg-green-100 text-green-800 border-green-200"
+                : difficulty === "hard"
+                  ? "bg-red-100 text-red-800 border-red-200"
+                  : "bg-yellow-100 text-yellow-800 border-yellow-200"
+            }`}
+          >
+            {difficulty}
+          </span>
+        </div>
+      )}
+      {brief.triggerEvent && (
+        <div>
+          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Trigger</h3>
+          <p className="text-xs text-gray-700 italic mt-1">{brief.triggerEvent}</p>
+        </div>
+      )}
+      {brief.painPoints.length > 0 && (
+        <div>
+          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Pain Points</h3>
+          <ul className="mt-1 space-y-1">
+            {brief.painPoints.map((p, i) => (
+              <li key={i} className="text-xs text-gray-700 flex items-start gap-1.5">
+                <span className="text-gray-400 mt-0.5 shrink-0">&bull;</span>
+                <span>{p}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {brief.personality && (
+        <div>
+          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Personality</h3>
+          <p className="text-xs text-gray-700 mt-1">{brief.personality}</p>
+        </div>
+      )}
+      {onClose && (
+        <button
+          onClick={onClose}
+          className="w-full text-sm text-blue-600 font-medium hover:text-blue-700 transition-colors lg:hidden"
+        >
+          Close
+        </button>
+      )}
+    </div>
+  );
+}
+
 export default function SessionPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -129,6 +201,7 @@ export default function SessionPage() {
   const [sending, setSending] = useState(false);
   const [waitingForAI, setWaitingForAI] = useState(false);
   const [showScorecard, setShowScorecard] = useState(false);
+  const [showMobileBrief, setShowMobileBrief] = useState(false);
   const chatEnd = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -178,153 +251,190 @@ export default function SessionPage() {
   }
 
   const isFirstTurn = messages.length === 0;
+  const brief = session?.prospectBrief;
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-3xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+      <header className="bg-white border-b border-gray-200 shrink-0">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-3 min-w-0">
             <button
               onClick={() => router.push("/")}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
+              className="text-gray-400 hover:text-gray-600 transition-colors shrink-0"
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
               </svg>
             </button>
-            <div>
-              <h1 className="text-lg font-semibold text-gray-900">
+            <div className="min-w-0">
+              <h1 className="text-base sm:text-lg font-semibold text-gray-900 truncate">
                 {session?.prospectName || "Loading..."}
               </h1>
-              {session?.prospectBrief && (
-                <p className="text-xs text-gray-500">
-                  {session.prospectBrief.role} at {session.prospectBrief.company}
+              {brief && (
+                <p className="text-xs text-gray-500 truncate">
+                  {brief.role} at {brief.company}
                 </p>
               )}
             </div>
           </div>
-          {session && (
-            <span
-              className={`text-xs font-medium px-3 py-1 rounded-full border ${
-                statusColors[session.status] || "bg-gray-100 text-gray-800"
-              }`}
-            >
-              {session.status === "completed" ? "Completed" : "Active"}
-            </span>
-          )}
+          <div className="flex items-center gap-2">
+            {brief && (
+              <button
+                onClick={() => setShowMobileBrief(!showMobileBrief)}
+                className="lg:hidden text-gray-400 hover:text-gray-600 transition-colors p-1"
+                aria-label="Toggle prospect info"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 100 20 10 10 0 000-20z" />
+                </svg>
+              </button>
+            )}
+            {session && (
+              <span
+                className={`text-xs font-medium px-2.5 py-1 rounded-full border shrink-0 ${
+                  statusColors[session.status] || "bg-gray-100 text-gray-800"
+                }`}
+              >
+                {session.status === "completed" ? "Completed" : "Active"}
+              </span>
+            )}
+          </div>
         </div>
       </header>
 
-      <div className="flex-1 max-w-3xl mx-auto w-full px-6 py-6 overflow-y-auto flex flex-col gap-4">
-        {messages.map((msg) => (
-          <div
-            key={msg.id}
-            className={`flex ${msg.role === "assistant" ? "justify-start" : "justify-end"}`}
-          >
-            <div
-              className={`max-w-[75%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
-                msg.role === "assistant"
-                  ? "bg-white border border-gray-200 text-gray-900 rounded-tl-sm"
-                  : "bg-blue-600 text-white rounded-tr-sm"
-              }`}
-            >
-              <p>{msg.content}</p>
-              <p
-                className={`text-xs mt-1 ${
-                  msg.role === "assistant" ? "text-gray-400" : "text-blue-200"
-                }`}
+      <div className="flex-1 flex max-w-5xl mx-auto w-full">
+        <div className="flex-1 flex flex-col min-w-0">
+          <div className="flex-1 px-4 sm:px-6 py-6 overflow-y-auto flex flex-col gap-4">
+            {messages.map((msg) => (
+              <div
+                key={msg.id}
+                className={`flex ${msg.role === "assistant" ? "justify-start" : "justify-end"}`}
               >
-                {new Date(msg.createdAt).toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
-              </p>
-            </div>
-          </div>
-        ))}
-
-        {waitingForAI && (
-          <div className="flex justify-start">
-            <div className="bg-white border border-gray-200 text-gray-900 rounded-2xl rounded-tl-sm px-4 py-3">
-              <div className="flex gap-1">
-                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                <div
+                  className={`max-w-[85%] sm:max-w-[75%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+                    msg.role === "assistant"
+                      ? "bg-white border border-gray-200 text-gray-900 rounded-tl-sm"
+                      : "bg-blue-600 text-white rounded-tr-sm"
+                  }`}
+                >
+                  <p>{msg.content}</p>
+                  <p
+                    className={`text-xs mt-1 ${
+                      msg.role === "assistant" ? "text-gray-400" : "text-blue-200"
+                    }`}
+                  >
+                    {new Date(msg.createdAt).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </p>
+                </div>
               </div>
-            </div>
-          </div>
-        )}
+            ))}
 
-        {messages.length === 0 && !waitingForAI && (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center">
-              <p className="text-sm text-gray-500 mb-2">
-                Your prospect is ready. Send your opener.
-              </p>
-              {session?.prospectBrief && (
-                <div className="bg-white border border-gray-200 rounded-xl p-4 text-left max-w-sm mx-auto">
-                  <p className="text-xs font-medium text-gray-500 mb-2 uppercase tracking-wide">
-                    Prospect Brief
+            {waitingForAI && (
+              <div className="flex justify-start">
+                <div className="bg-white border border-gray-200 text-gray-900 rounded-2xl rounded-tl-sm px-4 py-3">
+                  <div className="flex gap-1">
+                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {messages.length === 0 && !waitingForAI && (
+              <div className="flex-1 flex items-center justify-center">
+                <div className="text-center">
+                  <p className="text-sm text-gray-500 mb-2">
+                    Your prospect is ready. Send your opener.
                   </p>
-                  <p className="text-sm text-gray-900 font-medium">
-                    {session.prospectName}
-                  </p>
-                  <p className="text-xs text-gray-600">
-                    {session.prospectBrief.role} at {session.prospectBrief.company}
-                  </p>
-                  {session.prospectBrief.triggerEvent && (
-                    <p className="text-xs text-gray-500 mt-2 italic">
-                      {session.prospectBrief.triggerEvent}
-                    </p>
+                  {brief && (
+                    <div className="bg-white border border-gray-200 rounded-xl p-4 text-left max-w-sm mx-auto">
+                      <p className="text-xs font-medium text-gray-500 mb-2 uppercase tracking-wide">
+                        Prospect Brief
+                      </p>
+                      <p className="text-sm text-gray-900 font-medium">
+                        {session?.prospectName}
+                      </p>
+                      <p className="text-xs text-gray-600">
+                        {brief.role} at {brief.company}
+                      </p>
+                      {brief.triggerEvent && (
+                        <p className="text-xs text-gray-500 mt-2 italic">
+                          {brief.triggerEvent}
+                        </p>
+                      )}
+                    </div>
                   )}
                 </div>
-              )}
-            </div>
-          </div>
-        )}
+              </div>
+            )}
 
-        <div ref={chatEnd} />
+            <div ref={chatEnd} />
+          </div>
+
+          {session?.status === "active" && (
+            <div className="border-t border-gray-200 bg-white shrink-0">
+              <div className="px-4 sm:px-6 py-4">
+                <div className="flex items-center gap-2 max-w-3xl">
+                  <input
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && sendReply()}
+                    placeholder={
+                      isFirstTurn
+                        ? "Write your opener as the SDR..."
+                        : "Reply as the SDR..."
+                    }
+                    className="flex-1 border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                  <button
+                    onClick={sendReply}
+                    disabled={sending || !input.trim()}
+                    className="bg-blue-600 text-white px-5 py-3 rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {sending ? "Sending..." : "Send"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {session?.status === "completed" && (
+            <div className="border-t border-gray-200 bg-white shrink-0">
+              <div className="px-4 sm:px-6 py-4">
+                <div className="bg-blue-50 text-blue-700 text-center py-3 rounded-xl text-sm font-medium">
+                  This session is complete.{" "}
+                  <button
+                    onClick={() => setShowScorecard(true)}
+                    className="underline font-semibold"
+                  >
+                    View scorecard
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {brief && (
+          <aside className="hidden lg:block w-72 shrink-0 border-l border-gray-200 bg-white p-5 overflow-y-auto">
+            <BriefPanel brief={brief} prospectName={session?.prospectName ?? ""} />
+          </aside>
+        )}
       </div>
 
-      {session?.status === "active" && (
-        <div className="border-t border-gray-200 bg-white">
-          <div className="max-w-3xl mx-auto px-6 py-4">
-            <div className="flex items-center gap-2">
-              <input
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && sendReply()}
-                placeholder={
-                  isFirstTurn
-                    ? "Write your opener as the SDR..."
-                    : "Reply as the SDR..."
-                }
-                className="flex-1 border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-              <button
-                onClick={sendReply}
-                disabled={sending || !input.trim()}
-                className="bg-blue-600 text-white px-5 py-3 rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {sending ? "Sending..." : "Send"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {session?.status === "completed" && (
-        <div className="border-t border-gray-200 bg-white">
-          <div className="max-w-3xl mx-auto px-6 py-4">
-            <div className="bg-blue-50 text-blue-700 text-center py-3 rounded-xl text-sm font-medium">
-              This session is complete.{" "}
-              <button
-                onClick={() => setShowScorecard(true)}
-                className="underline font-semibold"
-              >
-                View scorecard
-              </button>
-            </div>
+      {showMobileBrief && brief && (
+        <div className="fixed inset-0 z-40 lg:hidden">
+          <div className="absolute inset-0 bg-black/30" onClick={() => setShowMobileBrief(false)} />
+          <div className="absolute right-0 top-0 bottom-0 w-72 bg-white shadow-xl p-5 overflow-y-auto">
+            <BriefPanel
+              brief={brief}
+              prospectName={session?.prospectName ?? ""}
+              onClose={() => setShowMobileBrief(false)}
+            />
           </div>
         </div>
       )}
