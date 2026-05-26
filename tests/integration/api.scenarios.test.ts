@@ -1,5 +1,9 @@
 import { describe, it, expect, vi } from "vitest";
 
+vi.mock("@/lib/auth", () => ({
+  auth: vi.fn().mockResolvedValue({ user: { id: "test-user" } }),
+}));
+
 vi.mock("@/db", () => ({
   db: {
     insert: vi.fn().mockReturnValue({

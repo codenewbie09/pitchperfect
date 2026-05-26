@@ -10,7 +10,7 @@ https://pp-sales.vercel.app
 
 | Feature | Description |
 |---------|-------------|
-| Auth methods | Sign in with Google, GitHub, or continue as a guest |
+| Auth methods | Sign in with Google or continue as a guest |
 | AI roleplay | Realistic prospect personas that respond in-character using Groq LLM |
 | Scoring | Auto-generated scorecard evaluating opener, qualification, objection handling, closing, and overall |
 | Responsive UI | Desktop-first with mobile-friendly collapse panels |
@@ -40,14 +40,15 @@ https://pp-sales.vercel.app
 
 ## Architecture Overview
 
-The app follows a straightforward serverless architecture:
+The app follows a serverless SaaS architecture with auth-gated routes and a component-based UI:
 
-1. **Pages** use the App Router -- a dashboard, session chat, review, and public share page.
-2. **API routes** handle database CRUD and AI turn logic, all co-located under `/app/api/`.
-3. **Drizzle ORM** connects to a Neon PostgreSQL database with tables for scenarios, sessions, and messages.
-4. **Groq API** powers the AI prospect -- each session maintains a prospect persona generated at session creation, and every SDR message triggers an in-character response.
-5. **NextAuth v5** manages authentication with Google and GitHub OAuth providers plus a credentials-based guest mode.
-6. **shadcn/ui** components provide the visual foundation, styled with Tailwind v4 CSS variables for dark/light mode support.
+1. **Pages** use the App Router -- a public landing page, authenticated dashboard, session chat with two-column layout, review page, and public share page.
+2. **API routes** are co-located under `/app/api/` -- individual endpoints for scenarios and sessions CRUD, a consolidated `/api/dashboard` endpoint (N+1 fetch fix), plus NextAuth route handlers for auth.
+3. **Drizzle ORM** connects to a Neon PostgreSQL database with tables for scenarios, sessions, messages, and NextAuth adapter tables for user, account, session, and verification token storage.
+4. **Groq API** powers the AI prospect -- each session generates a prospect persona at creation time, and every SDR message triggers an in-character response with automated scorecard generation on completion.
+5. **NextAuth v5** manages authentication with Google OAuth and a credentials-based guest mode. Protected routes use middleware to enforce auth, and all API queries filter by user ID for data isolation.
+6. **Component architecture** is organized by domain -- shared UI primitives under `/components/ui/` (shadcn/ui), dashboard components under `/components/dashboard/` (ScenarioCard, StatsBar, ScenarioForm, EmptyState), and chat components under `/components/chat/` (ChatMessage, ComposeBar, ScorecardDialog, BriefPanel, SessionHeader, TypingIndicator).
+7. **Error and loading states** use an ErrorBoundary wrapper with ErrorFallback component across routes, plus Skeleton placeholders during data fetching.
 
 ## Getting Started
 
@@ -70,10 +71,14 @@ Open http://localhost:3000 in your browser.
 ## Running Tests
 
 ```bash
-npm test            # Run once
-npm run test:watch  # Watch mode
-npm run test:coverage  # With coverage report
+npm test                   # Run 23 tests (unit + integration)
+npm run test:watch         # Watch mode
+npm run test:coverage      # With coverage report
 ```
+
+The test suite includes:
+- **Unit tests**: score color boundaries, JSON extraction from AI responses, prospect brief generation, and feedback parsing (18 tests)
+- **Integration tests**: API route validation for scenarios and session reply endpoints (5 tests, using mocked DB)
 
 ## License
 
