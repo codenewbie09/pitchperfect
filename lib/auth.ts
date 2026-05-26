@@ -12,16 +12,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     sessionsTable: authSessions,
     verificationTokensTable: authVerificationTokens,
   }),
-  providers: [
-    Google({
-      clientId: process.env.AUTH_GOOGLE_ID!,
-      clientSecret: process.env.AUTH_GOOGLE_SECRET!,
-    }),
-    GitHub({
-      clientId: process.env.AUTH_GITHUB_ID!,
-      clientSecret: process.env.AUTH_GITHUB_SECRET!,
-    }),
-  ],
+  providers: [Google, GitHub],
   pages: {
     signIn: "/",
   },
