@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { sessions, messages as messagesTable, scenarios } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { auth } from "@/lib/auth";
 
+// Public endpoint — no auth required. Only returns data for completed sessions.
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> },

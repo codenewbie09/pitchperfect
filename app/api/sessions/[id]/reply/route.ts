@@ -1,13 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { sessions, messages as messagesTable } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { runProspectTurn, generateFeedback } from "@/lib/prospect";
 
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const sessionUser = await auth();
+  if (!sessionUser?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { id } = await params;
   const { content } = await req.json();
 
@@ -15,15 +21,15 @@ export async function POST(
     return NextResponse.json({ error: "content required" }, { status: 400 });
   }
 
-  const session = await db.query.sessions.findFirst({
-    where: eq(sessions.id, id),
+  const practiceSession = await db.query.sessions.findFirst({
+    where: and(eq(sessions.id, id), eq(sessions.userId, sessionUser.user.id)),
   });
-  if (!session) {
+  if (!practiceSession) {
     return NextResponse.json({ error: "Session not found" }, { status: 404 });
   }
-  if (session.status !== "active") {
+  if (practiceSession.status !== "active") {
     return NextResponse.json(
-      { error: `Session is already ${session.status}` },
+      { error: `Session is already ${practiceSession.status}` },
       { status: 400 },
     );
   }

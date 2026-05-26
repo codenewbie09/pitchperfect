@@ -1,16 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { scenarios, sessions, messages as messagesTable } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { id } = await params;
 
   const scenario = await db.query.scenarios.findFirst({
-    where: eq(scenarios.id, id),
+    where: and(eq(scenarios.id, id), eq(scenarios.userId, session.user.id)),
   });
   if (!scenario) {
     return NextResponse.json({ error: "Scenario not found" }, { status: 404 });
@@ -41,7 +47,7 @@ export async function GET(
         (f?.objectionHandling as Record<string, unknown>)?.score ?? "";
       const closing = (f?.closing as Record<string, unknown>)?.score ?? "";
       const completedAt = s.createdAt?.toISOString?.() ?? "";
-      const name = `"${s.prospectName.replace(/"/g, '""')}"`;
+      const name = `"${s.prospectName.replace(/\"/g, '""')}"`;
       return `${name},${scenario.difficulty},${overallScore},${opener},${qualification},${objectionHandling},${closing},${turns},${completedAt}`;
     }),
   );
